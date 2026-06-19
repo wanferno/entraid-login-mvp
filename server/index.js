@@ -56,7 +56,7 @@ app.get("/api/auth/login", (req, res) => {
     response_type: "code",
     redirect_uri: REDIRECT_URI,
     response_mode: "query",
-    scope: "openid profile email User.Read",
+    scope: "openid profile email",
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -67,14 +67,19 @@ app.get("/api/auth/login", (req, res) => {
 });
 
 app.get("/api/auth/callback", async (req, res) => {
-  const { code, state } = req.query;
+  const { code, state, error } = req.query;
+
+  if (error) {
+    console.error("Error de Microsoft:", error, req.query.error_description);
+    return res.redirect(`http://localhost:5173?error=${encodeURIComponent("Autenticación cancelada")}`);
+  }
 
   if (!code || !state) {
-    return res.status(400).send("Faltan parámetros code o state");
+    return res.redirect("http://localhost:5173?error=Faltan+parámetros");
   }
 
   const stored = pkceStore.get(state);
-  if (!stored) return res.status(400).send("state inválido");
+  if (!stored) return res.redirect("http://localhost:5173?error=State+inválido");
   pkceStore.delete(state);
 
   try {

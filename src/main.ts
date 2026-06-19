@@ -43,6 +43,13 @@ async function logout() {
 }
 
 function init() {
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get("error");
+  if (error) {
+    showError(error);
+    history.replaceState(null, "", window.location.pathname);
+  }
+
   checkSession();
 
   document.getElementById("btnLogin")?.addEventListener("click", login);
