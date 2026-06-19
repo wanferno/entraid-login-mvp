@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login con Entra ID</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>MVP Login Entra ID</h1>
+    <p>Haz clic en "Iniciar sesión" para autenticarte con Microsoft Entra ID.</p>
+    <button id="btnLogin" class="btn-primary">Iniciar sesión</button>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Iniciar sesión</h2>
+        <button id="btnCloseModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalContent">
+          <p>Autenticando con Microsoft Entra ID...</p>
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancel" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="userInfo" class="user-info hidden">
+    <h2>Bienvenido</h2>
+    <p><strong>Nombre:</strong> <span id="displayName"></span></p>
+    <p><strong>Email:</strong> <span id="userEmail"></span></p>
+    <p><strong>Usuario:</strong> <span id="userName"></span></p>
+    <button id="btnLogout" class="btn-secondary">Cerrar sesión</button>
+  </div>
+
+  <div id="errorMessage" class="error hidden"></div>
+
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>
