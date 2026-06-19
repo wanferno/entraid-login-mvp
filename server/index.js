@@ -123,8 +123,10 @@ app.get("/api/auth/callback", async (req, res) => {
 
     res.redirect(stored.redirectTo);
   } catch (err) {
-    console.error("Error en callback:", err.response?.data || err.message);
-    res.status(500).send("Error al autenticar");
+    const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
+    console.error("Error en callback:", detail);
+    const msg = typeof detail === "string" ? detail : "Error al autenticar";
+    res.redirect(`http://localhost:5173?error=${encodeURIComponent(msg)}`);
   }
 });
 
