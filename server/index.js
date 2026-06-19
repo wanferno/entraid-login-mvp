@@ -9,10 +9,23 @@ import cookieParser from "cookie-parser";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import axios from "axios";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
 const PORT = 3001;
-const SESSION_SECRET = crypto.randomBytes(32).toString("hex");
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+
+// JWKS remoto de Microsoft (cacheado automáticamente por jose)
+let jwks;
+function getJWKS() {
+  if (!jwks) {
+    const url = new URL(
+      `https://login.microsoftonline.com/${TENANT_ID}/discovery/v2.0/keys`
+    );
+    jwks = createRemoteJWKSet(url);
+  }
+  return jwks;
+}
 
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(cookieParser());
@@ -42,9 +55,11 @@ app.get("/api/auth/login", (req, res) => {
   const challenge = base64url(
     crypto.createHash("sha256").update(verifier).digest()
   );
+  const nonce = crypto.randomUUID();
 
   const statePayload = {
     verifier,
+    nonce,
     redirectTo: req.query.redirect || "http://localhost:5173",
     exp: Date.now() + 300_000,
   };
@@ -57,6 +72,7 @@ app.get("/api/auth/login", (req, res) => {
     response_mode: "query",
     scope: "openid profile email",
     state,
+    nonce,
     code_challenge: challenge,
     code_challenge_method: "S256",
     prompt: "login",
@@ -103,9 +119,30 @@ app.get("/api/auth/callback", async (req, res) => {
     );
 
     const { id_token } = tokenRes.data;
-    const payload = JSON.parse(
-      Buffer.from(id_token.split(".")[1], "base64").toString()
-    );
+
+    // Validar ID Token con JWKS
+    let payload;
+    try {
+      const { payload: verified } = await jwtVerify(id_token, getJWKS(), {
+        issuer: `${AUTHORITY}/v2.0`,
+        audience: CLIENT_ID,
+      });
+      payload = verified;
+    } catch {
+      return res.redirect(
+        "http://localhost:5173?error=Token+de+identidad+inv%C3%A1lido"
+      );
+    }
+
+    // Validar nonce anti-replay
+    if (payload.nonce && payload.nonce !== stored.nonce) {
+      return res.redirect("http://localhost:5173?error=Nonce+inv%C3%A1lido");
+    }
+
+    // Validar tenant autorizado (solo single-tenant)
+    if (payload.tid !== TENANT_ID) {
+      return res.redirect("http://localhost:5173?error=Tenant+no+autorizado");
+    }
 
     const sessionToken = jwt.sign(
       {

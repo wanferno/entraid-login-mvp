@@ -106,12 +106,16 @@ npm run dev                # Solo frontend (5173)
 10. El frontend llama a GET /api/auth/me, recibe el usuario, lo muestra
 ```
 
+## Implementado
+
+- [x] Validación del ID Token con JWKS (`iss`, `aud`, nonce, `tid`)
+- [x] Nonce anti-replay
+- [x] Session JWT con clave configurable (`SESSION_SECRET` en `.env`)
+- [x] Validación de tenant autorizado (single-tenant)
+
 ## Por hacer (producción)
-- [ ] Validación del ID Token (firma con JWKS, `iss`, `aud`, `exp`, `tid`)
 - [ ] `secure: true` en la cookie (requiere HTTPS)
 - [ ] Renovación de tokens (refresh token)
-- [ ] Session JWT con clave fija (no generada aleatoriamente)
-- [ ] Almacenamiento de sesión persistente (no solo cookie JWT)
 - [ ] Rate limiting y protección CSRF
 - [ ] Logging estructurado
 
