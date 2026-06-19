@@ -209,3 +209,18 @@ y pasarlo al frontend como query param para diagnóstico.
 **AADSTS700025: Client is public**
 - **Causa:** App configurada como SPA en Azure
 - **Solución:** Cambiar a Web + deshabilitar clientes públicos
+
+---
+
+## Pendientes para próxima sesión
+
+1. **HTTPS local** — Cookie `secure: true`, generar certificado auto-firmado con `mkcert`
+2. **Migrar backend a TypeScript** — Misma experiencia de tipado que el frontend
+3. **Tests** — Unitarios con Node test runner o vitest, integración con supertest
+4. **Logging a archivo** — `pino/file` con rotación, `pino-pretty` en desarrollo
+
+## Referencias
+
+- `ARQUITECTURA-BFF.md` — Detalle completo de arquitectura
+- `README-FLOW.md` — Instrucciones de ejecución y estado
+- `AGENTS.md` — Documentación del proyecto

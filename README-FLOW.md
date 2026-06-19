@@ -113,13 +113,26 @@ npm run dev                # Solo frontend (5173)
 - [x] Session JWT con clave configurable (`SESSION_SECRET` en `.env`)
 - [x] Validación de tenant autorizado (single-tenant)
 
-## Por hacer (producción)
-- [x] Renovación de tokens (refresh token con `offline_access`)
-- [x] Rate limiting en `/api/auth/login`, `/api/auth/callback`, `/api/auth/me`
-- [x] Protección CSRF (header `X-Requested-By` obligatorio en POST)
-- [x] Logging estructurado con pino (JSON, request tracking)
-- [x] Endpoint `GET /api/health`
-- [ ] `secure: true` en la cookie (requiere HTTPS)
+## Estado de implementación
+
+| Feature | Estado |
+|---|---|
+| Authorization Code Flow + PKCE | ✅ |
+| State stateless | ✅ |
+| Validación ID Token con JWKS | ✅ |
+| Nonce anti-replay | ✅ |
+| `SESSION_SECRET` configurable | ✅ |
+| Refresh token + `offline_access` | ✅ |
+| Rate limiting | ✅ |
+| CSRF protection (X-Requested-By) | ✅ |
+| Logging estructurado con pino | ✅ |
+| Health endpoint | ✅ |
+
+## Pendientes para próxima sesión (en orden sugerido)
+1. **HTTPS local** — Generar certificado auto-firmado, cookie `secure: true`
+2. **Migrar backend a TypeScript** — Mismo tipado que el frontend
+3. **Tests** — Unitarios (jest/vitest) e integración (endpoints)
+4. **Logging a archivo** — Rotación de logs, pino-pretty para desarrollo
 
 ## Buenas prácticas aprendidas
 1. El Redirect URI en Azure debe ser tipo **Web** para usar `client_secret`.
