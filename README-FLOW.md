@@ -117,8 +117,9 @@ npm run dev                # Solo frontend (5173)
 - [x] Renovación de tokens (refresh token con `offline_access`)
 - [x] Rate limiting en `/api/auth/login`, `/api/auth/callback`, `/api/auth/me`
 - [x] Protección CSRF (header `X-Requested-By` obligatorio en POST)
+- [x] Logging estructurado con pino (JSON, request tracking)
+- [x] Endpoint `GET /api/health`
 - [ ] `secure: true` en la cookie (requiere HTTPS)
-- [ ] Logging estructurado
 
 ## Buenas prácticas aprendidas
 1. El Redirect URI en Azure debe ser tipo **Web** para usar `client_secret`.

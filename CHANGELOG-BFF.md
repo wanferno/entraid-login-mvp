@@ -5,6 +5,39 @@ Para usar como base de conocimiento en el proyecto real.
 
 ---
 
+## [1.5] — 2026-06-19 — Logging, Health endpoint
+
+### Cambios
+- Logging estructurado con `pino` (JSON, niveles, request/response tracking)
+- Endpoint `GET /api/health` para monitoreo
+- Reemplazados todos los `console.log/error` por `logger.info/error/warn`
+- Middleware de request logging automático para rutas `/api/*`
+
+### Archivos modificados
+- `server/index.js`: pino inicializado, health endpoint, request logger middleware
+- `server/package.json`: +`pino`
+- `CHANGELOG-BFF.md`: esta entrada
+
+### Decisión técnica
+**Problema:** Los logs eran `console.log/error` sin estructura, imposibles de parsear
+en producción o enviar a sistemas de monitoreo.
+
+**Solución:** Usar `pino` — el logger más rápido para Node.js. Cada request a `/api/*`
+genera un log JSON con método, ruta, status, duración. Los errores se loguean con
+nivel `error` o `warn` según gravedad.
+
+**Alternativas descartadas:**
+- `winston`: Más pesado, configuración más verbosa
+- `console`: Sin estructura, sin niveles, sin formato
+
+### Health endpoint
+```
+GET /api/health → { status: "ok", uptime: 13.5 }
+```
+Sirve para monitoreo básico (load balancers, health checks, Docker).
+
+---
+
 ## [1.4] — 2026-06-19 — Rate limiting, CSRF, Refresh Token
 
 ### Cambios
@@ -176,10 +209,3 @@ y pasarlo al frontend como query param para diagnóstico.
 **AADSTS700025: Client is public**
 - **Causa:** App configurada como SPA en Azure
 - **Solución:** Cambiar a Web + deshabilitar clientes públicos
-
----
-
-## Flujo documentado
-
-Ver `ARQUITECTURA-BFF.md` para el detalle completo de arquitectura.
-Ver `README-FLOW.md` para instrucciones de ejecución.

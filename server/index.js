@@ -10,6 +10,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
+import pino from "pino";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
@@ -23,10 +24,20 @@ const CLIENT_SECRET = process.env.VITE_CLIENT_SECRET;
 const REDIRECT_URI = `http://localhost:${PORT}/api/auth/callback`;
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}`;
 
+const logger = pino({
+  level: process.env.LOG_LEVEL || "info",
+  transport: { target: "pino/file", options: { destination: 1 } },
+});
+
 if (!CLIENT_ID || !TENANT_ID || !CLIENT_SECRET) {
-  console.error("Faltan variables de entorno: VITE_CLIENT_ID, VITE_TENANT_ID, VITE_CLIENT_SECRET");
+  logger.fatal({ CLIENT_ID: !!CLIENT_ID, TENANT_ID: !!TENANT_ID, CLIENT_SECRET: !!CLIENT_SECRET }, "Variables de entorno faltantes");
   process.exit(1);
 }
+
+// ── Health ──────────────────────────────────────────────────────
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
 
 // ── Rate limiting ──────────────────────────────────────────────
 const limiterLogin = rateLimit({
@@ -45,13 +56,30 @@ const limiterGeneral = rateLimit({
   message: { error: "Demasiadas solicitudes, intente más tarde" },
 });
 
-// ── CSRF: rechazar POST sin header custom ─────────────────────
+// ── CSRF ────────────────────────────────────────────────────────
 function csrfCheck(req, res, next) {
   if (req.method === "POST" && req.headers["x-requested-by"] !== "bff-mvp") {
+    logger.warn({ ip: req.ip, path: req.path }, "CSRF detectado");
     return res.status(403).json({ error: "CSRF detectado" });
   }
   next();
 }
+
+// ── Request logging ─────────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    if (req.path.startsWith("/api")) {
+      logger.info({
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        ms: Date.now() - start,
+      });
+    }
+  });
+  next();
+});
 
 // ── Middleware global ──────────────────────────────────────────
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
@@ -62,7 +90,7 @@ app.use("/api/auth/callback", limiterCallback);
 app.use("/api", limiterGeneral);
 app.use(csrfCheck);
 
-// ── JWKS remoto ────────────────────────────────────────────────
+// ── JWKS ────────────────────────────────────────────────────────
 let jwks;
 function getJWKS() {
   if (!jwks) {
@@ -124,8 +152,6 @@ function setSessionCookie(res, payload) {
   });
 }
 
-let refreshInProgress = null;
-
 async function tryRefresh(req, res) {
   const encrypted = req.cookies?.refresh_token;
   if (!encrypted) return null;
@@ -163,8 +189,10 @@ async function tryRefresh(req, res) {
       });
     }
 
+    logger.info({ sub: verified.sub }, "Refresh token exitoso");
     return verified;
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err.message }, "Refresh token falló");
     res.clearCookie("refresh_token");
     return null;
   }
@@ -200,6 +228,7 @@ app.get("/api/auth/login", (req, res) => {
     prompt: "login",
   });
 
+  logger.info({ tenant: TENANT_ID }, "Inicio flujo OAuth");
   res.redirect(`${AUTHORITY}/oauth2/v2.0/authorize?${params}`);
 });
 
@@ -207,7 +236,7 @@ app.get("/api/auth/callback", async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error) {
-    console.error("Error de Microsoft:", error, req.query.error_description);
+    logger.error({ error, description: req.query.error_description }, "Error de Microsoft en callback");
     return res.redirect(`http://localhost:5173?error=${encodeURIComponent("Autenticación cancelada")}`);
   }
 
@@ -221,6 +250,7 @@ app.get("/api/auth/callback", async (req, res) => {
     stored = JSON.parse(raw);
     if (Date.now() > stored.exp) throw new Error("expirado");
   } catch {
+    logger.warn("State inválido en callback");
     return res.redirect("http://localhost:5173?error=State+inv%C3%A1lido");
   }
 
@@ -242,7 +272,6 @@ app.get("/api/auth/callback", async (req, res) => {
 
     const { id_token, refresh_token } = tokenRes.data;
 
-    // Validar ID Token con JWKS
     let payload;
     try {
       const { payload: verified } = await jwtVerify(id_token, getJWKS(), {
@@ -250,19 +279,20 @@ app.get("/api/auth/callback", async (req, res) => {
         audience: CLIENT_ID,
       });
       payload = verified;
-    } catch {
+    } catch (err) {
+      logger.error({ error: err.message }, "ID Token inválido");
       return res.redirect(
         "http://localhost:5173?error=Token+de+identidad+inv%C3%A1lido"
       );
     }
 
-    // Validar nonce
     if (payload.nonce && payload.nonce !== stored.nonce) {
+      logger.warn("Nonce inválido en callback");
       return res.redirect("http://localhost:5173?error=Nonce+inv%C3%A1lido");
     }
 
-    // Validar tenant
     if (payload.tid !== TENANT_ID) {
+      logger.warn({ tid_recibido: payload.tid, tid_esperado: TENANT_ID }, "Tenant no autorizado");
       return res.redirect("http://localhost:5173?error=Tenant+no+autorizado");
     }
 
@@ -277,10 +307,11 @@ app.get("/api/auth/callback", async (req, res) => {
       });
     }
 
+    logger.info({ sub: payload.sub, email: payload.email || payload.preferred_username }, "Autenticación exitosa");
     res.redirect(stored.redirectTo);
   } catch (err) {
     const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
-    console.error("Error en callback:", detail);
+    logger.error({ error: detail }, "Error en callback");
     const msg = typeof detail === "string" ? detail : "Error al autenticar";
     res.redirect(`http://localhost:5173?error=${encodeURIComponent(msg)}`);
   }
@@ -297,7 +328,6 @@ app.get("/api/auth/me", async (req, res) => {
     const payload = jwt.verify(token, SESSION_SECRET);
     return res.json({ authenticated: true, user: payload });
   } catch {
-    // Session expirada, intentar refresh
     const user = await tryRefresh(req, res);
     if (user) {
       return res.json({ authenticated: true, user: { sub: user.sub, name: user.name, email: user.email || user.preferred_username, tid: user.tid } });
@@ -309,9 +339,10 @@ app.get("/api/auth/me", async (req, res) => {
 app.post("/api/auth/logout", (_req, res) => {
   res.clearCookie("session");
   res.clearCookie("refresh_token");
+  logger.info("Sesión cerrada");
   res.json({ ok: true });
 });
 
 app.listen(PORT, () => {
-  console.log(`BFF corriendo en http://localhost:${PORT}`);
+  logger.info({ port: PORT, url: `http://localhost:${PORT}` }, "BFF iniciado");
 });
