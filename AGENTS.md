@@ -1,42 +1,111 @@
-# MVP Login Entra ID
+# MVP Login Entra ID — Rama feature/bff-mvp
 
 ## Descripción
-MVP de inicio de sesión con Microsoft Entra ID usando MSAL.js, TypeScript y Vite. El login se dispara desde un modal embebido (popup).
+MVP del patrón **BFF (Backend for Frontend)** usando Authorization Code Flow con PKCE.
+El frontend nunca ve los tokens de Microsoft. El backend (Express) maneja todo el flujo
+OAuth y devuelve una cookie httpOnly de sesión.
 
 ## Stack
-- **Build:** Vite 6 + TypeScript 5
-- **Auth:** `@azure/msal-browser` v4 (flujo `loginPopup`)
-- **Cache:** `localStorage` (sesión persistente)
+- **Frontend:** Vite 6 + TypeScript 5 (sin MSAL.js)
+- **Backend:** Express 4 + Node 22 (JavaScript ESM)
+- **Auth:** Authorization Code Flow + PKCE + client_secret
+- **Sesión:** Cookie `httpOnly` con JWT firmado
 
 ## Estructura
 ```
 entraid-login-mvp/
-├── index.html          # HTML con modal, sección de usuario y error
+├── server/
+│   ├── index.js          # BFF: login, callback, me, logout
+│   └── package.json
 ├── src/
-│   ├── main.ts         # Lógica MSAL: login, logout, manejo de sesión
-│   └── styles.css      # Estilos del modal, spinner, layout
-├── .env                # Variables de entorno (no incluido en git)
-├── .env.example        # Plantilla para .env
-├── .gitignore
+│   ├── main.ts           # Cliente BFF: checkSession, login, logout
+│   └── styles.css
+├── index.html
+├── .env                  # Variables de entorno
+├── .env.example
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-└── AGENTS.md           # Este archivo
+└── AGENTS.md
 ```
 
-## Configuración pendiente
-Antes de ejecutar, editar `.env` (o copiar `.env.example` a `.env`):
-- `VITE_CLIENT_ID` → Client ID de la app en Azure Portal
-- `VITE_TENANT_ID` → Tenant ID o `consumers` / `common`
+## Configuración
+
+Editar `.env`:
+
+| Variable | Descripción |
+|---|---|
+| `VITE_CLIENT_ID` | Client ID de Azure AD |
+| `VITE_TENANT_ID` | Tenant ID |
+| `VITE_CLIENT_SECRET` | Client Secret (desde Azure Portal → Certificates & secrets) |
+
+El `CLIENT_SECRET` lo necesita el backend (no se expone al frontend).
+
+## Redirect URI en Azure
+
+Registrar en **Azure Portal → Authentication → Redirect URIs**:
+- Tipo: **Web** (no SPA)
+- URI: `http://localhost:3001/api/auth/callback`
 
 ## Comandos
-- `npm run dev` → Servidor de desarrollo en `http://localhost:5173`
-- `npm run build` → Compila TS y empaqueta en `dist/`
 
-## Flujo
-1. Usuario hace clic en "Iniciar sesión"
-2. Se abre un modal con spinner indicando autenticación
-3. MSAL abre popup de Entra ID
-4. Al completarse, se cierra el modal y se muestra info del usuario
-5. La sesión persiste en `localStorage` al recargar la página
-6. "Cerrar sesión" borra tokens y vuelve al estado inicial
+```bash
+npm run dev:bff    # Arranca BFF (puerto 3001) + Frontend (puerto 5173)
+```
+
+O por separado:
+```bash
+npm run bff        # Solo backend
+npm run dev        # Solo frontend Vite
+```
+
+## Flujo BFF
+
+```
+Frontend (5173)          BFF (3001)                Microsoft Entra ID
+   │                        │                           │
+   │  GET /api/auth/login   │                           │
+   │  (redirect)            │                           │
+   │ ─────────────────────▶ │  GET /authorize           │
+   │                        │ ────────────────────────▶ │
+   │                        │                           │
+   │                        │  ← Usuario se autentica ─ │
+   │                        │                           │
+   │                        │  GET /api/auth/callback   │
+   │                        │  (code + state)           │
+   │                        │ ←──────────────────────── │
+   │                        │                           │
+   │                        │  POST /oauth2/v2.0/token  │
+   │                        │  (code + verifier +       │
+   │                        │   client_secret)          │
+   │                        │ ────────────────────────▶ │
+   │                        │  ←── ID Token ────────────│
+   │                        │                           │
+   │                        │  Valida y firma JWT       │
+   │                        │  Set-Cookie: session      │
+   │                        │     (httpOnly)            │
+   │  ←── redirect (5173) ──│                           │
+   │                        │                           │
+   │  GET /api/auth/me      │                           │
+   │  (cookie session)      │                           │
+   │ ─────────────────────▶ │                           │
+   │  ←── { user: ... } ────│                           │
+```
+
+## Endpoints BFF
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/auth/login` | Inicia flujo OAuth, redirige a Microsoft |
+| GET | `/api/auth/callback` | Microsoft redirige aquí, intercambia code por tokens, setea cookie |
+| GET | `/api/auth/me` | Devuelve usuario autenticado o `{ authenticated: false }` |
+| POST | `/api/auth/logout` | Limpia la cookie de sesión |
+
+## Seguridad (MVP)
+
+- [x] Cookie `httpOnly` (inaccesible desde JS)
+- [x] PKCE obligatorio (S256)
+- [x] Client secret solo en backend
+- [ ] `secure: true` (requiere HTTPS — deshabilitado para localhost)
+- [ ] Validación de ID Token (firma, iss, aud) — pendiente en MVP
+- [ ] Renovación de tokens (refresh token) — pendiente
