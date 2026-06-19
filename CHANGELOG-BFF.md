@@ -5,6 +5,60 @@ Para usar como base de conocimiento en el proyecto real.
 
 ---
 
+## [1.4] — 2026-06-19 — Rate limiting, CSRF, Refresh Token
+
+### Cambios
+- Rate limiting con `express-rate-limit` (10 req/min login/callback, 60 req/min general)
+- Protección CSRF con header `X-Requested-By: bff-mvp` en POST
+- Refresh token: se solicita `offline_access`, se almacena cifrado en cookie httpOnly
+- Renovación automática: si el session JWT expiró, `/api/auth/me` intenta refresh silencioso
+- Frontend actualizado para enviar header CSRF en logout
+
+### Archivos modificados
+- `server/index.js`: rate limiters, csrfCheck middleware, encrypt/decrypt helpers, tryRefresh
+- `src/main.ts`: header `X-Requested-By` en fetch de logout
+- `server/package.json`: +`express-rate-limit`
+
+### Decisiones técnicas
+
+#### Rate limiting
+**Problema:** Los endpoints del BFF no tenían protección contra abuso.
+
+**Solución:** `express-rate-limit` con límites:
+- `/api/auth/login` → 10 req/min (evita fuerza bruta de redirecciones)
+- `/api/auth/callback` → 10 req/min (evita intercambio masivo de codes)
+- `/api/*` (general) → 60 req/min (límite global)
+
+#### CSRF
+**Problema:** El endpoint `POST /api/auth/logout` podía ser invocado desde sitios externos.
+
+**Solución:** Header custom `X-Requested-By: bff-mvp` obligatorio en toda petición POST.
+Los navegadores no permiten enviar headers custom cross-origin sin CORS preflight,
+lo que protege contra ataques CSRF clásicos.
+
+**Alternativas descartadas:**
+- `SameSite=Strict` en la cookie: Bloquea cookies en navegación normal desde enlaces externos
+- CSRF tokens: Más complejo, requiere sincronización estado-servidor
+- Doble submit cookie: Similar complejidad
+
+#### Refresh token
+**Problema:** La sesión expiraba a la hora sin posibilidad de renovación.
+
+**Solución (MVP):**
+1. Se agrega `offline_access` al scope para obtener `refresh_token`
+2. El `refresh_token` se cifra con AES-256-GCM usando `SESSION_SECRET` como clave
+3. Se guarda en cookie httpOnly con 90 días de vida
+4. En `/api/auth/me`, si el session JWT expiró, se intenta refresh automático
+5. Si el refresh falla, se limpia la cookie y se responde `{ authenticated: false }`
+
+**Seguridad del refresh token almacenado:**
+- Cifrado AES-256-GCM con clave derivada de `SESSION_SECRET`
+- Cookie httpOnly (inaccesible desde JS)
+- MismaSite=Lax (protegido contra CSRF básico)
+- Si el refresh falla (token revocado/expirado), se limpia automáticamente
+
+---
+
 ## [1.3] — 2026-06-19 — Validación de ID Token + Nonce
 
 ### Cambios

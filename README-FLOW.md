@@ -114,9 +114,10 @@ npm run dev                # Solo frontend (5173)
 - [x] Validación de tenant autorizado (single-tenant)
 
 ## Por hacer (producción)
+- [x] Renovación de tokens (refresh token con `offline_access`)
+- [x] Rate limiting en `/api/auth/login`, `/api/auth/callback`, `/api/auth/me`
+- [x] Protección CSRF (header `X-Requested-By` obligatorio en POST)
 - [ ] `secure: true` en la cookie (requiere HTTPS)
-- [ ] Renovación de tokens (refresh token)
-- [ ] Rate limiting y protección CSRF
 - [ ] Logging estructurado
 
 ## Buenas prácticas aprendidas

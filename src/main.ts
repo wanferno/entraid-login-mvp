@@ -38,6 +38,7 @@ async function logout() {
   await fetch(`${BFF_URL}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
+    headers: { "X-Requested-By": "bff-mvp" },
   });
   window.location.reload();
 }
