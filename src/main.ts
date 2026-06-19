@@ -2,7 +2,6 @@ import {
   PublicClientApplication,
   type AccountInfo,
   InteractionRequiredAuthError,
-  BrowserAuthError,
 } from "@azure/msal-browser";
 
 const msalConfig = {
@@ -32,32 +31,24 @@ async function handleRedirectPromise() {
 async function login() {
   showModal();
   try {
-    const response = await msalInstance.loginPopup(loginRequest);
+    const response = await msalInstance.ssoSilent(loginRequest);
     hideModal();
     showUserInfo(response.account);
   } catch (err) {
-    hideModal();
     if (err instanceof InteractionRequiredAuthError) {
-      showError("Se requiere interacción adicional. Reintenta con el flujo de redirección.");
-      redirectLogin();
+      hideModal();
+      await msalInstance.loginRedirect(loginRequest);
       return;
     }
-    if (err instanceof BrowserAuthError && err.message.includes("user_cancelled")) {
-      showError("Inicio de sesión cancelado por el usuario.");
-      return;
-    }
+    hideModal();
     showError("Error al iniciar sesión", err);
   }
-}
-
-async function redirectLogin() {
-  await msalInstance.loginRedirect(loginRequest);
 }
 
 function logout() {
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
-    msalInstance.logoutPopup({
+    msalInstance.logoutRedirect({
       account: accounts[0],
       postLogoutRedirectUri: window.location.origin,
     });
