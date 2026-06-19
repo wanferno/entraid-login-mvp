@@ -1,8 +1,6 @@
 import {
   PublicClientApplication,
   type AccountInfo,
-  InteractionRequiredAuthError,
-  BrowserAuthError,
 } from "@azure/msal-browser";
 
 const msalConfig = {
@@ -30,34 +28,17 @@ async function handleRedirectPromise() {
 }
 
 async function login() {
-  showModal();
   try {
-    const response = await msalInstance.loginPopup(loginRequest);
-    hideModal();
-    showUserInfo(response.account);
+    await msalInstance.loginRedirect(loginRequest);
   } catch (err) {
-    hideModal();
-    if (err instanceof InteractionRequiredAuthError) {
-      showError("Se requiere interacción adicional. Reintenta con el flujo de redirección.");
-      redirectLogin();
-      return;
-    }
-    if (err instanceof BrowserAuthError && err.message.includes("user_cancelled")) {
-      showError("Inicio de sesión cancelado por el usuario.");
-      return;
-    }
     showError("Error al iniciar sesión", err);
   }
-}
-
-async function redirectLogin() {
-  await msalInstance.loginRedirect(loginRequest);
 }
 
 function logout() {
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
-    msalInstance.logoutPopup({
+    msalInstance.logoutRedirect({
       account: accounts[0],
       postLogoutRedirectUri: window.location.origin,
     });
@@ -110,11 +91,6 @@ async function init() {
   }
 
   document.getElementById("btnLogin")?.addEventListener("click", login);
-  document.getElementById("btnCloseModal")?.addEventListener("click", hideModal);
-  document.getElementById("btnCancel")?.addEventListener("click", hideModal);
-  document.getElementById("modalOverlay")?.addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) hideModal();
-  });
   document.getElementById("btnLogout")?.addEventListener("click", logout);
 }
 
