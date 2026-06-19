@@ -18,8 +18,6 @@ app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 
-const pkceStore = new Map();
-
 function base64url(buf) {
   return buf
     .toString("base64")
@@ -44,12 +42,13 @@ app.get("/api/auth/login", (req, res) => {
   const challenge = base64url(
     crypto.createHash("sha256").update(verifier).digest()
   );
-  const state = crypto.randomUUID();
 
-  pkceStore.set(state, {
+  const statePayload = {
     verifier,
     redirectTo: req.query.redirect || "http://localhost:5173",
-  });
+    exp: Date.now() + 300_000,
+  };
+  const state = base64url(Buffer.from(JSON.stringify(statePayload)));
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -75,12 +74,17 @@ app.get("/api/auth/callback", async (req, res) => {
   }
 
   if (!code || !state) {
-    return res.redirect("http://localhost:5173?error=Faltan+parámetros");
+    return res.redirect("http://localhost:5173?error=Faltan+par%C3%B3metros");
   }
 
-  const stored = pkceStore.get(state);
-  if (!stored) return res.redirect("http://localhost:5173?error=State+inválido");
-  pkceStore.delete(state);
+  let stored;
+  try {
+    const raw = Buffer.from(state, "base64").toString();
+    stored = JSON.parse(raw);
+    if (Date.now() > stored.exp) throw new Error("expirado");
+  } catch {
+    return res.redirect("http://localhost:5173?error=State+inv%C3%A1lido");
+  }
 
   try {
     const tokenRes = await axios.post(
