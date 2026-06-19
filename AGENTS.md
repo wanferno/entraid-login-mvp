@@ -26,7 +26,9 @@ entraid-login-mvp/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-└── AGENTS.md
+├── AGENTS.md
+├── ARQUITECTURA-BFF.md
+└── README-FLOW.md
 ```
 
 ## Configuración
