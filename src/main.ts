@@ -1,8 +1,8 @@
 const PROTO = window.location.protocol === "https:" ? "https" : "http";
-const BFF_URL = `${PROTO}://localhost:3001`;
+const BFF_PORT = import.meta.env.VITE_BFF_PORT || "3001";
+const BFF_URL = `${PROTO}://localhost:${BFF_PORT}`;
 
 // ── State ───────────────────────────────────────────────────
-let isLoading = true;
 
 // ── DOM refs ────────────────────────────────────────────────
 const loadingState = document.getElementById("loadingState")!;
@@ -19,14 +19,9 @@ const userEmail = document.getElementById("userEmail")!;
 const userNameEl = document.getElementById("userName")!;
 const userAvatar = document.getElementById("userAvatar")!;
 
-function $(id: string): HTMLElement | null {
-  return document.getElementById(id);
-}
-
 // ── UI helpers ──────────────────────────────────────────────
 function showLoading(show: boolean) {
   loadingState.classList.toggle("hidden", !show);
-  isLoading = show;
 }
 
 function showLoginButton(show: boolean) {

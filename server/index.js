@@ -18,7 +18,7 @@ import helmet from "helmet";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
-const PORT = 3001;
+const PORT = parseInt(process.env.BFF_PORT || "3001", 10);
 const HTTPS_ENABLED = process.env.HTTPS === "true";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ENCRYPTION_KEY = crypto.createHash("sha256").update(SESSION_SECRET).digest();
@@ -27,7 +27,8 @@ const CLIENT_ID = process.env.VITE_CLIENT_ID;
 const TENANT_ID = process.env.VITE_TENANT_ID;
 const CLIENT_SECRET = process.env.VITE_CLIENT_SECRET;
 const PROTOCOL = HTTPS_ENABLED ? "https" : "http";
-const FRONTEND_URL = `${PROTOCOL}://localhost:5173`;
+const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || "5173", 10);
+const FRONTEND_URL = `${PROTOCOL}://localhost:${FRONTEND_PORT}`;
 const REDIRECT_URI = `${PROTOCOL}://localhost:${PORT}/api/auth/callback`;
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}`;
 const END_SESSION_ENDPOINT = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/logout`;
