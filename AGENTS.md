@@ -52,7 +52,8 @@ Registrar en **Azure Portal → Authentication → Redirect URIs**:
 ## Comandos
 
 ```bash
-npm run dev:bff    # Arranca BFF (puerto 3001) + Frontend (puerto 5173)
+npm run dev:bff     # Arranca BFF (3001) + Frontend (5173) en HTTP
+npm run dev:bffs    # Arranca BFF (3001) + Frontend (5173) en HTTPS
 ```
 
 O por separado:

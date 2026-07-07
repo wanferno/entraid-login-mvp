@@ -1,4 +1,5 @@
-const BFF_URL = "http://localhost:3001";
+const PROTO = window.location.protocol === "https:" ? "https" : "http";
+const BFF_URL = `${PROTO}://localhost:3001`;
 
 function showUserInfo(user: { name: string; email: string }) {
   document.getElementById("btnLogin")?.classList.add("hidden");

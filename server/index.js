@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import path from "path";
+import { readFileSync } from "fs";
+import { createServer as createHttpServer } from "http";
+import { createServer as createHttpsServer } from "https";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
@@ -15,13 +18,16 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
 const PORT = 3001;
+const HTTPS_ENABLED = process.env.HTTPS === "true";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ENCRYPTION_KEY = crypto.createHash("sha256").update(SESSION_SECRET).digest();
 
 const CLIENT_ID = process.env.VITE_CLIENT_ID;
 const TENANT_ID = process.env.VITE_TENANT_ID;
 const CLIENT_SECRET = process.env.VITE_CLIENT_SECRET;
-const REDIRECT_URI = `http://localhost:${PORT}/api/auth/callback`;
+const PROTOCOL = HTTPS_ENABLED ? "https" : "http";
+const FRONTEND_URL = `${PROTOCOL}://localhost:5173`;
+const REDIRECT_URI = `${PROTOCOL}://localhost:${PORT}/api/auth/callback`;
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}`;
 
 const logger = pino({
@@ -82,7 +88,7 @@ app.use((req, res, next) => {
 });
 
 // ── Middleware global ──────────────────────────────────────────
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use("/api/auth/login", limiterLogin);
@@ -132,6 +138,15 @@ function decrypt(text) {
   return dec;
 }
 
+function setCookie(res, name, value, maxAge) {
+  res.cookie(name, value, {
+    httpOnly: true,
+    secure: HTTPS_ENABLED,
+    sameSite: "lax",
+    maxAge,
+  });
+}
+
 function setSessionCookie(res, payload) {
   const token = jwt.sign(
     {
@@ -144,12 +159,7 @@ function setSessionCookie(res, payload) {
     { expiresIn: "1h" }
   );
 
-  res.cookie("session", token, {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-    maxAge: 60 * 60 * 1000,
-  });
+  setCookie(res, "session", token, 60 * 60 * 1000);
 }
 
 async function tryRefresh(req, res) {
@@ -181,12 +191,7 @@ async function tryRefresh(req, res) {
     setSessionCookie(res, verified);
 
     if (newRefreshToken) {
-      res.cookie("refresh_token", encrypt(newRefreshToken), {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 90 * 24 * 60 * 60 * 1000,
-      });
+      setCookie(res, "refresh_token", encrypt(newRefreshToken), 90 * 24 * 60 * 60 * 1000);
     }
 
     logger.info({ sub: verified.sub }, "Refresh token exitoso");
@@ -210,7 +215,7 @@ app.get("/api/auth/login", (req, res) => {
   const statePayload = {
     verifier,
     nonce,
-    redirectTo: req.query.redirect || "http://localhost:5173",
+    redirectTo: req.query.redirect || FRONTEND_URL,
     exp: Date.now() + 300_000,
   };
   const state = base64url(Buffer.from(JSON.stringify(statePayload)));
@@ -234,14 +239,15 @@ app.get("/api/auth/login", (req, res) => {
 
 app.get("/api/auth/callback", async (req, res) => {
   const { code, state, error } = req.query;
+  const frontendErr = (msg) => res.redirect(`${FRONTEND_URL}?error=${encodeURIComponent(msg)}`);
 
   if (error) {
     logger.error({ error, description: req.query.error_description }, "Error de Microsoft en callback");
-    return res.redirect(`http://localhost:5173?error=${encodeURIComponent("Autenticación cancelada")}`);
+    return frontendErr("Autenticación cancelada");
   }
 
   if (!code || !state) {
-    return res.redirect("http://localhost:5173?error=Faltan+par%C3%B3metros");
+    return frontendErr("Faltan parámetros");
   }
 
   let stored;
@@ -251,7 +257,7 @@ app.get("/api/auth/callback", async (req, res) => {
     if (Date.now() > stored.exp) throw new Error("expirado");
   } catch {
     logger.warn("State inválido en callback");
-    return res.redirect("http://localhost:5173?error=State+inv%C3%A1lido");
+    return frontendErr("State inválido");
   }
 
   try {
@@ -281,30 +287,23 @@ app.get("/api/auth/callback", async (req, res) => {
       payload = verified;
     } catch (err) {
       logger.error({ error: err.message }, "ID Token inválido");
-      return res.redirect(
-        "http://localhost:5173?error=Token+de+identidad+inv%C3%A1lido"
-      );
+      return frontendErr("Token de identidad inválido");
     }
 
     if (payload.nonce && payload.nonce !== stored.nonce) {
       logger.warn("Nonce inválido en callback");
-      return res.redirect("http://localhost:5173?error=Nonce+inv%C3%A1lido");
+      return frontendErr("Nonce inválido");
     }
 
     if (payload.tid !== TENANT_ID) {
       logger.warn({ tid_recibido: payload.tid, tid_esperado: TENANT_ID }, "Tenant no autorizado");
-      return res.redirect("http://localhost:5173?error=Tenant+no+autorizado");
+      return frontendErr("Tenant no autorizado");
     }
 
     setSessionCookie(res, payload);
 
     if (refresh_token) {
-      res.cookie("refresh_token", encrypt(refresh_token), {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 90 * 24 * 60 * 60 * 1000,
-      });
+      setCookie(res, "refresh_token", encrypt(refresh_token), 90 * 24 * 60 * 60 * 1000);
     }
 
     logger.info({ sub: payload.sub, email: payload.email || payload.preferred_username }, "Autenticación exitosa");
@@ -313,7 +312,7 @@ app.get("/api/auth/callback", async (req, res) => {
     const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
     logger.error({ error: detail }, "Error en callback");
     const msg = typeof detail === "string" ? detail : "Error al autenticar";
-    res.redirect(`http://localhost:5173?error=${encodeURIComponent(msg)}`);
+    res.redirect(`${FRONTEND_URL}?error=${encodeURIComponent(msg)}`);
   }
 });
 
@@ -343,6 +342,19 @@ app.post("/api/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
-  logger.info({ port: PORT, url: `http://localhost:${PORT}` }, "BFF iniciado");
-});
+// ── Start ──────────────────────────────────────────────────────
+const appUrl = `${PROTOCOL}://localhost:${PORT}`;
+
+if (HTTPS_ENABLED) {
+  const httpsOptions = {
+    key: readFileSync(path.resolve(__dirname, "..", "certs", "key.pem")),
+    cert: readFileSync(path.resolve(__dirname, "..", "certs", "cert.pem")),
+  };
+  createHttpsServer(httpsOptions, app).listen(PORT, () => {
+    logger.info({ port: PORT, url: appUrl, https: true }, "BFF iniciado (HTTPS)");
+  });
+} else {
+  createHttpServer(app).listen(PORT, () => {
+    logger.info({ port: PORT, url: appUrl, https: false }, "BFF iniciado (HTTP)");
+  });
+}
