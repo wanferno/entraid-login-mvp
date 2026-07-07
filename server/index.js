@@ -29,6 +29,7 @@ const PROTOCOL = HTTPS_ENABLED ? "https" : "http";
 const FRONTEND_URL = `${PROTOCOL}://localhost:5173`;
 const REDIRECT_URI = `${PROTOCOL}://localhost:${PORT}/api/auth/callback`;
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}`;
+const END_SESSION_ENDPOINT = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/logout`;
 
 const logger = pino({
   level: process.env.LOG_LEVEL || "info",
@@ -338,8 +339,11 @@ app.get("/api/auth/me", async (req, res) => {
 app.post("/api/auth/logout", (_req, res) => {
   res.clearCookie("session");
   res.clearCookie("refresh_token");
+
+  const logoutUrl = `${END_SESSION_ENDPOINT}?post_logout_redirect_uri=${encodeURIComponent(FRONTEND_URL)}`;
+
   logger.info("Sesión cerrada");
-  res.json({ ok: true });
+  res.json({ ok: true, logoutUrl });
 });
 
 // ── Start ──────────────────────────────────────────────────────

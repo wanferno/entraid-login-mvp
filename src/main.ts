@@ -36,12 +36,17 @@ function login() {
 }
 
 async function logout() {
-  await fetch(`${BFF_URL}/api/auth/logout`, {
+  const res = await fetch(`${BFF_URL}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
     headers: { "X-Requested-By": "bff-mvp" },
   });
-  window.location.reload();
+  const data = await res.json();
+  if (data.logoutUrl) {
+    window.location.href = data.logoutUrl;
+  } else {
+    window.location.reload();
+  }
 }
 
 function init() {

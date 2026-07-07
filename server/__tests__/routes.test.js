@@ -187,7 +187,7 @@ describe("Routes", () => {
 
   // ── Logout ──────────────────────────────────────────────────
   describe("POST /api/auth/logout", () => {
-    it("limpia cookies y responde ok", async () => {
+    it("limpia cookies y devuelve logoutUrl", async () => {
       const res = await fetch(`${baseURL}/api/auth/logout`, {
         method: "POST",
         headers: {
@@ -199,6 +199,15 @@ describe("Routes", () => {
       assert.equal(res.status, 200);
       const body = await res.json();
       assert.equal(body.ok, true);
+      assert.ok(body.logoutUrl, "Debe incluir logoutUrl");
+      assert.ok(
+        body.logoutUrl.includes("oauth2/v2.0/logout"),
+        "logoutUrl debe apuntar a Microsoft"
+      );
+      assert.ok(
+        body.logoutUrl.includes("post_logout_redirect_uri"),
+        "logoutUrl debe incluir post_logout_redirect_uri"
+      );
 
       const setCookie = res.headers.get("set-cookie") || "";
       assert.ok(setCookie.includes("session="));
