@@ -8,39 +8,65 @@
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>MVP Login Entra ID</h1>
-    <p>Haz clic en "Iniciar sesión" para autenticarte con Microsoft Entra ID.</p>
-    <button id="btnLogin" class="btn-primary">Iniciar sesión</button>
+  <!-- Estado inicial: cargando -->
+  <div id="loadingState" class="loading-state">
+    <div class="spinner"></div>
+    <p>Verificando sesión...</p>
   </div>
 
+  <!-- No autenticado -->
+  <div id="loginState" class="container hidden">
+    <div class="card">
+      <div class="logo">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="8" fill="#0078d4"/>
+          <path d="M14 14h9v9h-9V14ZM25 14h9v9h-9V14ZM14 25h9v9h-9V25ZM25 25h9v9h-9V25Z" fill="#fff"/>
+        </svg>
+      </div>
+      <h1>MVP Login Entra ID</h1>
+      <p>Iniciá sesión con tu cuenta de Microsoft para acceder a la aplicación.</p>
+      <button id="btnLogin" class="btn-primary">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <!-- Modal de login (redirigiendo a Microsoft) -->
   <div id="modalOverlay" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
         <h2>Iniciar sesión</h2>
-        <button id="btnCloseModal" class="btn-close">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="modalContent">
-          <p>Autenticando con Microsoft Entra ID...</p>
-          <div class="spinner"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="btnCancel" class="btn-secondary">Cancelar</button>
+        <p>Redirigiendo a Microsoft Entra ID...</p>
+        <div class="spinner"></div>
       </div>
     </div>
   </div>
 
+  <!-- Autenticado -->
   <div id="userInfo" class="user-info hidden">
-    <h2>Bienvenido</h2>
-    <p><strong>Nombre:</strong> <span id="displayName"></span></p>
-    <p><strong>Email:</strong> <span id="userEmail"></span></p>
-    <p><strong>Usuario:</strong> <span id="userName"></span></p>
-    <button id="btnLogout" class="btn-secondary">Cerrar sesión</button>
+    <div class="avatar" id="userAvatar">?</div>
+    <h2 id="displayName"></h2>
+    <div class="user-details">
+      <div class="detail-row">
+        <span class="detail-label">Email</span>
+        <span class="detail-value" id="userEmail"></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Usuario</span>
+        <span class="detail-value" id="userName"></span>
+      </div>
+    </div>
+    <button id="btnLogout" class="btn-secondary">
+      <span class="btn-text">Cerrar sesión</span>
+      <span class="btn-spinner hidden"></span>
+    </button>
   </div>
 
-  <div id="errorMessage" class="error hidden"></div>
+  <!-- Error -->
+  <div id="errorMessage" class="error hidden">
+    <span id="errorText"></span>
+    <button id="btnDismissError" class="btn-dismiss">&times;</button>
+  </div>
 
   <script type="module" src="src/main.ts"></script>
 </body>
