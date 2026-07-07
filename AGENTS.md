@@ -109,6 +109,6 @@ Frontend (5173)          BFF (3001)                Microsoft Entra ID
 - [x] Cookie `httpOnly` (inaccesible desde JS)
 - [x] PKCE obligatorio (S256)
 - [x] Client secret solo en backend
-- [ ] `secure: true` (requiere HTTPS — deshabilitado para localhost)
-- [ ] Validación de ID Token (firma, iss, aud) — pendiente en MVP
-- [ ] Renovación de tokens (refresh token) — pendiente
+- [x] `secure: true` (con HTTPS=true)
+- [x] Validación de ID Token (firma con JWKS, iss, aud, nonce, tid)
+- [x] Renovación de tokens (refresh token rotado, encryptado AES-256-GCM)

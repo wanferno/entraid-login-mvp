@@ -14,6 +14,7 @@ import jwt from "jsonwebtoken";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
 import pino from "pino";
+import helmet from "helmet";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
@@ -40,11 +41,6 @@ if (!CLIENT_ID || !TENANT_ID || !CLIENT_SECRET) {
   logger.fatal({ CLIENT_ID: !!CLIENT_ID, TENANT_ID: !!TENANT_ID, CLIENT_SECRET: !!CLIENT_SECRET }, "Variables de entorno faltantes");
   process.exit(1);
 }
-
-// ── Health ──────────────────────────────────────────────────────
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", uptime: process.uptime() });
-});
 
 // ── Rate limiting ──────────────────────────────────────────────
 const limiterLogin = rateLimit({
@@ -88,7 +84,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Middleware global ──────────────────────────────────────────
+// ── Middleware global (seguridad, CORS, parsing) ──────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  hsts: HTTPS_ENABLED ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+}));
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
@@ -96,6 +101,11 @@ app.use("/api/auth/login", limiterLogin);
 app.use("/api/auth/callback", limiterCallback);
 app.use("/api", limiterGeneral);
 app.use(csrfCheck);
+
+// ── Health ──────────────────────────────────────────────────────
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
 
 // ── JWKS ────────────────────────────────────────────────────────
 let jwks;
