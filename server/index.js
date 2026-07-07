@@ -343,18 +343,33 @@ app.post("/api/auth/logout", (_req, res) => {
 });
 
 // ── Start ──────────────────────────────────────────────────────
-const appUrl = `${PROTOCOL}://localhost:${PORT}`;
+const runningDirectly = process.argv[1] === fileURLToPath(import.meta.url);
 
-if (HTTPS_ENABLED) {
-  const httpsOptions = {
-    key: readFileSync(path.resolve(__dirname, "..", "certs", "key.pem")),
-    cert: readFileSync(path.resolve(__dirname, "..", "certs", "cert.pem")),
-  };
-  createHttpsServer(httpsOptions, app).listen(PORT, () => {
-    logger.info({ port: PORT, url: appUrl, https: true }, "BFF iniciado (HTTPS)");
-  });
-} else {
-  createHttpServer(app).listen(PORT, () => {
-    logger.info({ port: PORT, url: appUrl, https: false }, "BFF iniciado (HTTP)");
-  });
+if (runningDirectly) {
+  const appUrl = `${PROTOCOL}://localhost:${PORT}`;
+  if (HTTPS_ENABLED) {
+    const httpsOptions = {
+      key: readFileSync(path.resolve(__dirname, "..", "certs", "key.pem")),
+      cert: readFileSync(path.resolve(__dirname, "..", "certs", "cert.pem")),
+    };
+    createHttpsServer(httpsOptions, app).listen(PORT, () => {
+      logger.info({ port: PORT, url: appUrl, https: true }, "BFF iniciado (HTTPS)");
+    });
+  } else {
+    createHttpServer(app).listen(PORT, () => {
+      logger.info({ port: PORT, url: appUrl, https: false }, "BFF iniciado (HTTP)");
+    });
+  }
 }
+
+export {
+  app,
+  base64url,
+  encrypt,
+  decrypt,
+  setCookie,
+  setSessionCookie,
+  getJWKS,
+  tryRefresh,
+  csrfCheck,
+};
