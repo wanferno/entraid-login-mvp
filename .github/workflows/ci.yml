@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [feature/bff-mvp]
+    branches: [main]
   pull_request:
-    branches: [feature/bff-mvp]
+    branches: [main]
 
 jobs:
   test:
