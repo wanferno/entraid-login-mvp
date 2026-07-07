@@ -1,3 +1,14 @@
+# 🗄️ ARCHIVADO — MVP Login con Microsoft Entra ID (BFF Pattern)
+
+> **⚠️ Este repositorio queda como REFERENCIA LEGACY.**
+> El código producido aquí se migró a los repos productivos:
+> - **Backend**: `id4docs-seguridad` — Spring Boot + BCrypt + OAuth BFF
+> - **Frontend**: `FrontendId4docs` — Vue 3 + Pinia + cookie httpOnly
+>
+> Rama activa de migración: `release/secure/integracion-v1-v2` (backend) / `release/secure/integra-v1-v2` (frontend)
+>
+> No hacer cambios en este repo. Usar los repos productivos.
+
 # MVP Login con Microsoft Entra ID (BFF Pattern)
 
 Backend for Frontend (BFF) con Authorization Code Flow + PKCE para autenticación con Microsoft Entra ID. El frontend **nunca ve los tokens de Microsoft** — todo el flujo OAuth lo maneja el backend Express y devuelve una cookie `httpOnly` de sesión.

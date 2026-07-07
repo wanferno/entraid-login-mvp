@@ -1,3 +1,14 @@
+# 🗄️ ARCHIVADO — MVP Login Entra ID
+
+> **⚠️ Este repositorio queda como REFERENCIA LEGACY.**
+> El código producido aquí se migró a los repos productivos:
+> - **Backend**: `id4docs-seguridad` — Spring Boot + BCrypt + OAuth BFF
+> - **Frontend**: `FrontendId4docs` — Vue 3 + Pinia + cookie httpOnly
+>
+> Rama activa de migración: `release/secure/integracion-v1-v2` (backend) / `release/secure/integra-v1-v2` (frontend)
+>
+> No hacer cambios en este repo. Usar los repos productivos.
+
 # MVP Login Entra ID — Rama feature/bff-mvp
 
 ## Descripción
