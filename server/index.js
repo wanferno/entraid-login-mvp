@@ -17,6 +17,14 @@ import pino from "pino";
 import helmet from "helmet";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
+// Permite mockear jwtVerify en tests sin mock.module
+export const tokenVerifier = {
+  async verify(idToken, jwks, options) {
+    const { payload } = await jwtVerify(idToken, jwks, options);
+    return payload;
+  },
+};
+
 const app = express();
 const PORT = parseInt(process.env.BFF_PORT || "3001", 10);
 const HTTPS_ENABLED = process.env.HTTPS === "true";
@@ -195,7 +203,7 @@ async function tryRefresh(req, res) {
     );
 
     const { id_token, refresh_token: newRefreshToken } = tokenRes.data;
-    const { payload: verified } = await jwtVerify(id_token, getJWKS(), {
+    const verified = await tokenVerifier.verify(id_token, getJWKS(), {
       issuer: `${AUTHORITY}/v2.0`,
       audience: CLIENT_ID,
     });
@@ -292,7 +300,7 @@ app.get("/api/auth/callback", async (req, res) => {
 
     let payload;
     try {
-      const { payload: verified } = await jwtVerify(id_token, getJWKS(), {
+      const verified = await tokenVerifier.verify(id_token, getJWKS(), {
         issuer: `${AUTHORITY}/v2.0`,
         audience: CLIENT_ID,
       });
